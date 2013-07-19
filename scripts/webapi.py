@@ -130,14 +130,10 @@ class PlayerResource(APIResource):
         return json.dumps({'players': players})
 
 class PlayerDetailResource(Resource):
+    isLeaf = True
+    
     def __init__(self, player):
         self.player = player
-
-    def getChild(self, path, request):
-        if path is '':
-            return self
-        else:
-            return ErrorResource(ERROR_INVALID_PLAYER)
     
     def render(self, request):
         includeSkills = False
