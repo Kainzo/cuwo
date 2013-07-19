@@ -39,4 +39,6 @@ irc_chatprefix = '#'
 
 # WebApi script variables (enable by adding 'webapi' to script list)
 webapi_port = 12350
-webapi_keys = ["5403f121d134c922f181465ba7e9a7190936606d"]
+webapi_keys = [ # Be sure to change the default key!
+    "5403f121d134c922f181465ba7e9a7190936606d"
+]
