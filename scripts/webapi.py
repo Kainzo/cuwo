@@ -16,6 +16,7 @@ ERROR_UNAUTHORIZED = -1
 ERROR_INVALID_RESOURCE = -2
 ERROR_INVALID_PLAYER = -3
 ERROR_INVALID_TIME = -4
+ERROR_INVALID_METHOD = -5
 
 def encodeItemUpgrade(upgrade):
     encoded = {
@@ -94,6 +95,7 @@ class WebAPI(Resource):
         self.putChild('player', PlayerResource(self.server))
         self.putChild('kick', KickResource(self.server))
         self.putChild('time', TimeResource(self.server))
+        self.putChild('message', MessageResource(self.server))
     
     def getChildWithDefault(self, name, request):
         if name is '':
@@ -177,6 +179,22 @@ class TimeResource(APIResource):
     
     def render(self, request):
         return json.dumps({'time': self.server.get_clock()})
+
+class MessageResource(APIResource):
+    def getChild(self, path, request):
+        if request.content.seek(0, 2) != 0:
+            message = request.content.getvalue()
+            if path == '':
+                self.server.send_chat(message)
+                return SuccessResource()
+            else:
+                name = path.lower()
+                for connection in self.server.connections.values():
+                    if connection.name is not None and connection.name.lower() == name:
+                        connection.send_chat(message)
+                        return SuccessResource()
+                return ErrorResource(ERROR_INVALID_PLAYER)
+        return ErrorResource(ERROR_INVALID_METHOD)
 
 class WebAPIScriptFactory(ServerScript):    
     def on_load(self):
