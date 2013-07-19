@@ -2,20 +2,20 @@
 Publishes a webapi for cuwo
 """
 
-from twisted.internet import reactor, protocol
-from twisted.web import util
+from twisted.internet import reactor
 from twisted.web.resource import Resource, NoResource
 from twisted.web.server import Site
-from cuwo.common import parse_command
-from cuwo.script import ServerScript, ConnectionScript
+from cuwo.script import ServerScript
 
 import json
+import time
 
-WEBAPI_VERSION = '0.0.1a'
+WEBAPI_VERSION = '0.0.2'
 
 ERROR_UNAUTHORIZED = -1
 ERROR_INVALID_RESOURCE = -2
 ERROR_INVALID_PLAYER = -3
+ERROR_INVALID_TIME = -4
 
 def encodeItemUpgrade(upgrade):
     encoded = {
@@ -93,6 +93,7 @@ class WebAPI(Resource):
         self.keys = keys
         self.putChild('player', PlayerResource(self.server))
         self.putChild('kick', KickResource(self.server))
+        self.putChild('time', TimeResource(self.server))
     
     def getChildWithDefault(self, name, request):
         if name is '':
@@ -162,10 +163,26 @@ class KickResource(APIResource):
             players.append(connection.entity_data.name)
         return json.dumps({'players': players})
 
+class TimeResource(APIResource):
+    def getChild(self, path, request):
+        if path == '':
+            return self
+        try:
+            time.strptime(path, '%H:%M')
+            self.server.set_clock(path)
+            return SuccessResource()
+        except ValueError:
+            pass
+        return ErrorResource(ERROR_INVALID_TIME)
+    
+    def render(self, request):
+        return json.dumps({'time': self.server.get_clock()})
+
 class WebAPIScriptFactory(ServerScript):    
     def on_load(self):
         config = self.server.config
         reactor.listenTCP(config.webapi_port, Site(WebAPI(self.server, config.webapi_keys)))
+        print 'webapi (%s) running on port %s' % (WEBAPI_VERSION, config.webapi_port)
 
 def get_class():
     return WebAPIScriptFactory
