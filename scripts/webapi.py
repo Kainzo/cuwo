@@ -75,6 +75,12 @@ class ErrorResource(Resource):
     def render(self, request):
         return json.dumps({'error': self.message})
 
+class SuccessResource(Resource):
+    isLeaf = True
+    
+    def render(self, request):
+        return json.dumps({'success': 1})
+
 class APIResource(Resource):
     def __init__(self, server):
         Resource.__init__(self)
@@ -86,6 +92,7 @@ class WebAPI(Resource):
         self.server = server
         self.keys = keys
         self.putChild('player', PlayerResource(self.server))
+        self.putChild('kick', KickResource(self.server))
     
     def getChildWithDefault(self, name, request):
         if name is '':
@@ -111,14 +118,12 @@ class PlayerResource(APIResource):
             return self
         name = path.lower()
         for connection in self.server.connections.values():
-            if connection.entity_data.name.lower() == name:
+            if connection.name is not None and connection.entity_data.name.lower() == name:
                 return PlayerDetailResource(connection.entity_data)
         return ErrorResource(ERROR_INVALID_PLAYER)
     
     def render(self, request):
-        players = []
-        for connection in self.server.connections.values():
-            players.append(connection.entity_data.name)
+        players = [connection.name for connection in self.server.connections.values() if connection.name is not None]
         return json.dumps({'players': players})
 
 class PlayerDetailResource(Resource):
@@ -141,6 +146,21 @@ class PlayerDetailResource(Resource):
             if 'equipment' in inclusion:
                 includeEquipment = True
         return json.dumps({'player': encodePlayer(self.player, includeSkills, includeEquipment)})
+
+class KickResource(APIResource):
+    def getChild(self, path, request):
+        name = path.lower()
+        for connection in self.server.connections.values():
+            if connection.name is not None and connection.name.lower() == name:
+                connection.kick()
+                return SuccessResource()
+        return ErrorResource(ERROR_INVALID_PLAYER)
+    
+    def render(self, request):
+        players = []
+        for connection in self.server.connections.values():
+            players.append(connection.entity_data.name)
+        return json.dumps({'players': players})
 
 class WebAPIScriptFactory(ServerScript):    
     def on_load(self):
